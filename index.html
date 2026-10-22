@@ -1,0 +1,1218 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Atomic Survival 118 - Tiến hoá từ H đến Og</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#050810; font-family:'Segoe UI',system-ui,sans-serif; color:#e0e8ff; overflow:hidden; user-select:none; -webkit-user-select:none; }
+  #gameCanvas { display:block; position:absolute; top:0; left:0; cursor:crosshair; }
+
+  /* ========= HUD ========= */
+  #hud { position:absolute; top:0; left:0; right:0; padding:16px; pointer-events:none; display:none; }
+  .top-row { display:flex; justify-content:space-between; align-items:flex-start; }
+  
+  .stats-panel {
+    background:rgba(10,20,35,0.85); border-radius:18px; padding:12px 20px;
+    border:1px solid rgba(100,180,255,0.25); backdrop-filter:blur(8px);
+    min-width:340px;
+  }
+  .level-info { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .symbol {
+    font-size:1.8rem; font-weight:700; width:54px; height:54px; line-height:54px; text-align:center;
+    border-radius:50%; background:radial-gradient(circle at 30% 30%,rgba(120,200,255,0.35),rgba(20,60,120,0.6));
+    border:2px solid rgba(120,200,255,0.6); box-shadow:0 0 20px rgba(80,180,255,0.4);
+  }
+  .level-text { flex:1; }
+  .level-name { font-size:1.2rem; font-weight:600; }
+  .level-z { font-size:0.8rem; color:#8ab0d8; }
+  
+  .bar-label { display:flex; justify-content:space-between; font-size:0.72rem; color:#7a9cc0; margin-bottom:3px; margin-top:6px; }
+  .bar-bg { height:12px; background:#0a1220; border-radius:8px; overflow:hidden; border:1px solid rgba(80,160,255,0.3); }
+  .hp-fill { height:100%; width:100%; background:linear-gradient(90deg,#20d080,#60ffa0); box-shadow:0 0 10px rgba(80,255,160,0.4); transition:width 0.1s linear; }
+  .xp-fill { height:100%; width:0%; background:linear-gradient(90deg,#a060ff,#ff40a0); box-shadow:0 0 10px rgba(200,80,255,0.6); transition:width 0.2s linear; }
+
+  .wave-info {
+    background:rgba(60,20,20,0.7); border:1px solid rgba(255,100,80,0.4);
+    padding:8px 20px; border-radius:14px; text-align:center;
+  }
+  .wave-info .kills { font-size:1.5rem; font-weight:700; color:#ff8060; }
+  .wave-info .lbl { font-size:0.7rem; color:#ffa0a0; text-transform:uppercase; letter-spacing:1px; }
+
+  /* ========= Skill Bar ========= */
+  #skillBar {
+    position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
+    display:flex; gap:12px; pointer-events:auto;
+  }
+  .skill-btn {
+    width:78px; height:78px; border-radius:16px;
+    background:rgba(10,20,35,0.9); border:2px solid rgba(100,180,255,0.4);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    position:relative; overflow:hidden; box-shadow:0 0 15px rgba(0,0,0,0.5);
+    transition:transform 0.1s, box-shadow 0.2s, filter 0.2s; cursor:pointer;
+  }
+  .skill-btn:active { transform:scale(0.95); }
+  .skill-btn.ready { border-color:#60ffa0; box-shadow:0 0 20px rgba(80,255,160,0.4); }
+  .skill-btn.flash { transform:scale(1.15); }
+  .skill-btn.cooldown-active { filter: grayscale(0.7) brightness(0.5); }
+  .skill-btn .key-hint {
+    position:absolute; top:4px; left:6px; font-size:0.75rem; font-weight:700;
+    color:#80c0ff; background:rgba(20,50,100,0.8); padding:1px 6px; border-radius:6px;
+  }
+  .skill-btn .icon { font-size:1.5rem; margin-bottom:2px; font-weight:900; }
+  .skill-btn .name { font-size:0.48rem; color:#8ab0d8; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; text-align:center; line-height:1.1; }
+  .skill-btn .cd-text { color:#ff80a0; font-size:0.55rem; }
+  .skill-btn .cooldown-overlay {
+    position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.75);
+    height:0%; transition:height 0.05s linear; display:flex; align-items:flex-start; justify-content:center;
+    color:#fff; font-size:1.3rem; font-weight:700; padding-top:6px;
+  }
+  .clone-count {
+    position:absolute; bottom:4px; right:6px; font-size:0.6rem; font-weight:700;
+    color:#a0ffa0; background:rgba(0,20,0,0.8); padding:1px 4px; border-radius:4px;
+    border:1px solid rgba(160,255,160,0.4);
+  }
+
+  /* ========= MOBILE CONTROLS ========= */
+  #mobileControls {
+    display:none; position:absolute; inset:0; pointer-events:none; z-index:5;
+  }
+  #joystickZone {
+    position:absolute; bottom:20px; left:20px;
+    width:120px; height:120px; border-radius:50%;
+    background:rgba(255,255,255,0.05); border:2px solid rgba(100,180,255,0.2);
+    pointer-events:auto; touch-action:none;
+  }
+  #joystickKnob {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:50px; height:50px; border-radius:50%;
+    background:rgba(100,180,255,0.6); border:2px solid #80c0ff;
+    box-shadow:0 0 15px rgba(80,180,255,0.5);
+  }
+  #attackBtn {
+    position:absolute; bottom:30px; right:30px;
+    width:90px; height:90px; border-radius:50%;
+    background:rgba(255,60,80,0.3); border:2px solid rgba(255,60,80,0.6);
+    display:flex; align-items:center; justify-content:center;
+    font-size:2rem; color:#fff; pointer-events:auto; touch-action:none;
+    box-shadow:0 0 20px rgba(255,60,80,0.4); user-select:none;
+  }
+  #attackBtn:active { background:rgba(255,60,80,0.6); transform:scale(0.95); }
+
+  body.is-touch #mobileControls { display:block; }
+  body.is-touch #skillBar { bottom:135px; }
+
+  /* ========= Overlays ========= */
+  .overlay {
+    position:absolute; inset:0;
+    background:radial-gradient(circle at 50% 40%,rgba(20,40,70,0.95),rgba(3,5,10,0.98));
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:20px; padding:30px; z-index:10; text-align:center;
+  }
+  h1.title {
+    font-size:2.8rem; letter-spacing:6px; text-transform:uppercase;
+    background:linear-gradient(135deg,#a0d0ff,#60a0ff,#3060d0);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 20px rgba(80,180,255,0.5));
+  }
+  .desc { font-size:1.1rem; color:#a0c0e0; max-width:600px; line-height:1.6; }
+  .btn {
+    background:linear-gradient(135deg,#2a6ad0,#1040a0);
+    border:1px solid #80c0ff; color:#fff; padding:14px 60px; border-radius:40px;
+    font-size:1.2rem; font-weight:600; letter-spacing:3px; cursor:pointer;
+    transition:0.2s; font-family:inherit; box-shadow:0 8px 25px rgba(40,100,200,0.4);
+    margin-top:20px;
+  }
+  .btn:hover { background:linear-gradient(135deg,#3a8ae0,#2060c0); transform:translateY(-2px); box-shadow:0 12px 30px rgba(60,140,255,0.6); }
+  
+  #gameOverScreen .result-title {
+    font-size:4rem; letter-spacing:6px;
+    background:linear-gradient(135deg,#ff6060,#d02020); -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 25px rgba(255,80,80,0.6));
+  }
+  .final-stats { background:rgba(20,40,70,0.6); padding:20px 40px; border-radius:20px; border:1px solid rgba(100,180,255,0.3); }
+  .final-stats div { font-size:1.2rem; margin:8px 0; color:#c0e0ff; }
+  .final-stats span { color:#fff; font-weight:700; }
+
+  /* Toast message */
+  #toast {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:rgba(20,40,70,0.95); border:1px solid rgba(100,180,255,0.5);
+    padding:12px 30px; border-radius:14px; font-size:1.1rem; color:#fff;
+    pointer-events:none; opacity:0; transition:opacity 0.3s;
+    box-shadow:0 0 30px rgba(80,180,255,0.4); text-align:center; z-index:20;
+  }
+
+  @media (max-width: 800px) {
+    .stats-panel { min-width: 200px; padding: 8px 12px; }
+    .symbol { width: 40px; height: 40px; line-height: 40px; font-size: 1.4rem; }
+    .level-name { font-size: 1rem; }
+    .skill-btn { width: 64px; height: 64px; }
+    body.is-touch #skillBar { bottom: 130px; gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- Mobile Controls -->
+<div id="mobileControls">
+  <div id="joystickZone">
+    <div id="joystickKnob"></div>
+  </div>
+  <div id="attackBtn">⚔️</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="top-row">
+    <div class="stats-panel">
+      <div class="level-info">
+        <div class="symbol" id="uiSym">H</div>
+        <div class="level-text">
+          <div class="level-name" id="uiName">Hydrogen</div>
+          <div class="level-z" id="uiZ">Z = 1</div>
+        </div>
+      </div>
+      <div class="bar-label"><span>Máu (HP)</span><span id="uiHpText">100 / 100</span></div>
+      <div class="bar-bg"><div class="hp-fill" id="uiHpBar"></div></div>
+      <div class="bar-label"><span>Kinh nghiệm (XP)</span><span id="uiXpText">0 / 100</span></div>
+      <div class="bar-bg"><div class="xp-fill" id="uiXpBar"></div></div>
+    </div>
+
+    <div class="wave-info">
+      <div class="kills" id="uiKills">0</div>
+      <div class="lbl">Đã hạ gục</div>
+    </div>
+  </div>
+</div>
+
+<!-- Skill Bar -->
+<div id="skillBar" style="display:none;">
+  <div class="skill-btn" id="skillQ">
+    <div class="key-hint">Q</div>
+    <div class="icon" id="iconQ" style="color:#ffff80">✹</div>
+    <div class="name" id="nameQ">Chiêu 1<br><span class="cd-text" id="qCdText">(10s)</span></div>
+    <div class="cooldown-overlay" id="cdQ"></div>
+  </div>
+  <div class="skill-btn" id="skillE">
+    <div class="key-hint">E</div>
+    <div class="icon" style="color:#60ffff">◈</div>
+    <div class="name">Khiên<br><span class="cd-text" id="eCdText">(15s)</span></div>
+    <div class="cooldown-overlay" id="cdE"></div>
+  </div>
+  <div class="skill-btn" id="skillR">
+    <div class="key-hint">R</div>
+    <div class="icon" id="iconR" style="color:#c0d0ff">⛨</div>
+    <div class="name" id="nameR">Chiêu 3<br><span class="cd-text" id="rCdText">(30s)</span></div>
+    <div class="cooldown-overlay" id="cdR"></div>
+  </div>
+  <div class="skill-btn" id="skillT">
+    <div class="key-hint">T</div>
+    <div class="icon" style="color:#a0ffa0">✦</div>
+    <div class="name">Nhân bản<br><span class="cd-text" id="tCdText">(15s)</span></div>
+    <div class="cooldown-overlay" id="cdT"></div>
+    <div class="clone-count" id="cloneCount">0/1</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Start Screen -->
+<div class="overlay" id="startScreen">
+  <h1 class="title">⚛️ ATOMIC SURVIVAL 118</h1>
+  <div class="desc">
+    Bạn bắt đầu là <b>Hydrogen</b> — nguyên tử yếu nhất.<br>
+    Hạ gục kẻ địch để tiến hoá đến <b>Oganesson</b> (Z=118)!<br>
+    <span style="color:#60ffa0; font-size:0.9rem;">Mỗi nguyên tố sở hữu một chiêu thức Q độc nhất!</span>
+  </div>
+  <div class="desc" style="font-size:0.9rem; color:#7a9cc0; margin-top:10px;">
+    <span id="controlHint">
+      <b>WASD</b> di chuyển · <b>Chuột trái</b> bắn đạn<br>
+      <b>Q</b>: Chiêu độc quyền · <b>E</b>: Khiên · <b>R</b>: Siêu năng lực · <b>T</b>: Nhân bản
+    </span>
+  </div>
+  <button class="btn" id="startBtn">BẮT ĐẦU</button>
+</div>
+
+<!-- Game Over Screen -->
+<div class="overlay" id="gameOverScreen" style="display:none;">
+  <h1 class="result-title">GAME OVER</h1>
+  <div class="final-stats">
+    <div>Cấp độ đạt được: <span id="finalZ">Z = 1</span></div>
+    <div>Tên nguyên tố: <span id="finalName">Hydrogen</span></div>
+    <div>Số kẻ địch đã hạ: <span id="finalKills">0</span></div>
+  </div>
+  <button class="btn" id="retryBtn">THỬ LẠI</button>
+</div>
+
+<script>
+// ============================================================
+// KIỂM TRA THIẾT BỊ
+// ============================================================
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+if (isTouchDevice) {
+  document.body.classList.add('is-touch');
+  document.getElementById('controlHint').innerHTML = "<b>Joystick</b> di chuyển · <b>Nút ⚔️</b> bắn đạn<br><b>Chạm nút Q, E, R, T</b> để dùng chiêu";
+}
+
+// ============================================================
+// DỮ LIỆU 118 NGUYÊN TỐ
+// ============================================================
+const SYM = ['H','He','Li','Be','B','C','N','O','F','Ne','Na','Mg','Al','Si','P','S','Cl','Ar','K','Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr','Rb','Sr','Y','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I','Xe','Cs','Ba','La','Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu','Hf','Ta','W','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn','Fr','Ra','Ac','Th','Pa','U','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No','Lr','Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og'];
+const NAME = ['Hydrogen','Helium','Lithium','Beryllium','Boron','Carbon','Nitrogen','Oxygen','Fluorine','Neon','Sodium','Magnesium','Aluminium','Silicon','Phosphorus','Sulfur','Chlorine','Argon','Potassium','Calcium','Scandium','Titanium','Vanadium','Chromium','Manganese','Iron','Cobalt','Nickel','Copper','Zinc','Gallium','Germanium','Arsenic','Selenium','Bromine','Krypton','Rubidium','Strontium','Yttrium','Zirconium','Niobium','Molybdenum','Technetium','Ruthenium','Rhodium','Palladium','Silver','Cadmium','Indium','Tin','Antimony','Tellurium','Iodine','Xenon','Caesium','Barium','Lanthanum','Cerium','Praseodymium','Neodymium','Promethium','Samarium','Europium','Gadolinium','Terbium','Dysprosium','Holmium','Erbium','Thulium','Ytterbium','Lutetium','Hafnium','Tantalum','Tungsten','Rhenium','Osmium','Iridium','Platinum','Gold','Mercury','Thallium','Lead','Bismuth','Polonium','Astatine','Radon','Francium','Radium','Actinium','Thorium','Protactinium','Uranium','Neptunium','Plutonium','Americium','Curium','Berkelium','Californium','Einsteinium','Fermium','Mendelevium','Nobelium','Lawrencium','Rutherfordium','Dubnium','Seaborgium','Bohrium','Hassium','Meitnerium','Darmstadtium','Roentgenium','Copernicium','Nihonium','Flerovium','Moscovium','Livermorium','Tennessine','Oganesson'];
+
+function getCategory(z) {
+  if ([3,11,19,37,55,87].includes(z)) return 'alkali';
+  if ([4,12,20,38,56,88].includes(z)) return 'alkaline';
+  if ([9,17,35,53,85,117].includes(z)) return 'halogen';
+  if ([2,10,18,36,54,86,118].includes(z)) return 'noble';
+  if ([1,6,7,8,15,16,34].includes(z)) return 'nonmetal';
+  if ([5,14,32,33,51,52,84].includes(z)) return 'metalloid';
+  if ((z>=21&&z<=30)||(z>=39&&z<=48)||(z>=72&&z<=80)||(z>=104&&z<=112)) return 'transition';
+  if (z>=57 && z<=71) return 'lanthanide';
+  if (z>=89 && z<=103) return 'actinide';
+  return 'post'; // 13, 31, 49, 50, 81-83, 113-116
+}
+
+function getElementType(z) {
+  const cat = getCategory(z);
+  if (['alkali', 'alkaline', 'transition', 'lanthanide', 'actinide', 'post'].includes(cat)) return 'metal';
+  if (cat === 'noble') return 'noble_gas';
+  return 'nonmetal';
+}
+
+function getColor(z) {
+  const cat = getCategory(z);
+  switch(cat) {
+    case 'alkali': return '#ff8060';
+    case 'alkaline': return '#ffb060';
+    case 'transition': return '#c0d0ff';
+    case 'halogen': return '#80ff80';
+    case 'noble': return '#80c8ff';
+    case 'nonmetal': return '#ffff80';
+    case 'metalloid': return '#a0ffa0';
+    case 'lanthanide': return '#ffa0ff';
+    case 'actinide': return '#ff40a0';
+    default: return '#c0a0ff';
+  }
+}
+
+function getMaxClones(z) { return z; }
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const G = {
+  active: false,
+  playerZ: 1,
+  hp: 100, maxHp: 100,
+  xp: 0, xpToNext: 50,
+  kills: 0,
+  playerX: 0, playerY: 0,
+  enemies: [], bullets: [], particles: [], floatTexts: [], clones: [],
+  keys: {}, mouse: { x: 0, y: 0, down: false }, joystick: { x: 0, y: 0 },
+  shootTimer: 0, spawnTimer: 0,
+  shake: 0, time: 0, lastTime: 0, bgStars: [], toastTimer: 0,
+  
+  // Trạng thái hiệu ứng
+  shieldTime: 0, invulnerableTime: 0, damageBuffTime: 0, stealthTime: 0,
+
+  skills: [
+    { key: 'q', cd: 0, maxCd: 10 },
+    { key: 'e', cd: 0, maxCd: 15 },
+    { key: 'r', cd: 0, maxCd: 30 },
+    { key: 't', cd: 0, maxCd: 15 }
+  ]
+};
+
+// ============================================================
+// CANVAS & SETUP
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+for (let i = 0; i < 100; i++) {
+  G.bgStars.push({ x: Math.random() * 4000, y: Math.random() * 4000, r: Math.random() * 1.5 + 0.5, a: Math.random() * 0.5 + 0.1 });
+}
+
+// ============================================================
+// CẬP NHẬT KỸ NĂNG & UI
+// ============================================================
+function updateSkillCooldowns() {
+  const type = getElementType(G.playerZ);
+  
+  if (type === 'metal') {
+    G.skills[0].maxCd = 12; G.skills[1].maxCd = 18; G.skills[2].maxCd = 30;
+  } else if (type === 'nonmetal') {
+    G.skills[0].maxCd = 8; G.skills[1].maxCd = 12; G.skills[2].maxCd = 25;
+  } else if (type === 'noble_gas') {
+    G.skills[0].maxCd = 10; G.skills[1].maxCd = 15; G.skills[2].maxCd = 40;
+  }
+  G.skills[3].maxCd = Math.max(2, 15 - Math.floor(G.playerZ / 12));
+
+  // Cập nhật text
+  document.getElementById('qCdText').textContent = `(${G.skills[0].maxCd}s)`;
+  document.getElementById('eCdText').textContent = `(${G.skills[1].maxCd}s)`;
+  document.getElementById('rCdText').textContent = `(${G.skills[2].maxCd}s)`;
+  document.getElementById('tCdText').textContent = `(${G.skills[3].maxCd}s)`;
+
+  G.skills.forEach(s => { if (s.cd > s.maxCd) s.cd = s.maxCd; });
+  
+  // Cập nhật chữ cho R
+  const nameR = document.getElementById('nameR');
+  const iconR = document.getElementById('iconR');
+  if (type === 'metal') { nameR.childNodes[0].nodeValue = "Cứng"; iconR.textContent = '⛨'; }
+  else if (type === 'nonmetal') { nameR.childNodes[0].nodeValue = "Hóa Kim/Khí"; iconR.textContent = '✹'; }
+  else if (type === 'noble_gas') { nameR.childNodes[0].nodeValue = "Tàng hình"; iconR.textContent = '☁'; }
+
+  // Cập nhật chữ cho Q (Độc quyền theo nguyên tố)
+  const nameQ = document.getElementById('nameQ');
+  const iconQ = document.getElementById('iconQ');
+  const z = G.playerZ;
+  
+  let qName = "Chiêu 1", qColor = "#ffff80";
+  if (z === 1) { qName = "Bom H"; qColor = "#ffffff"; }
+  else if (z === 2) { qName = "Đẩy Lùi"; qColor = "#80c8ff"; }
+  else if (z === 6) { qName = "Kim Cương"; qColor = "#e0e8ff"; }
+  else if (z === 7) { qName = "Đóng Băng"; qColor = "#80ffff"; }
+  else if (z === 8) { qName = "Thiêu Đốt"; qColor = "#ff8060"; }
+  else if (z === 11) { qName = "Nổ Natri"; qColor = "#ffb060"; }
+  else if (z === 26) { qName = "Hóa Sắt"; qColor = "#c0d0ff"; }
+  else if (z === 29) { qName = "Sét Đánh"; qColor = "#ffb060"; }
+  else if (z === 47) { qName = "Kháng Khuẩn"; qColor = "#e0e8ff"; }
+  else if (z === 79) { qName = "Hóa Vàng"; qColor = "#ffd700"; }
+  else if (z === 92) { qName = "Phân Hạch"; qColor = "#ff40a0"; }
+  else if (type === 'metal') { qName = "Nổ KL"; qColor = "#ff8060"; }
+  else if (type === 'nonmetal') { qName = "Bắn Tỏa"; qColor = "#ffff80"; }
+  else if (type === 'noble_gas') { qName = "Tia Laser"; qColor = "#80c8ff"; }
+  else { qName = "Nổ"; qColor = "#ff8060"; }
+
+  nameQ.childNodes[0].nodeValue = qName;
+  iconQ.style.color = qColor;
+
+  updateUI();
+}
+
+function updateStatsFromZ() {
+  G.maxHp = 100 + G.playerZ * 8;
+  G.hp = G.maxHp;
+  G.xpToNext = 50 + G.playerZ * 30;
+  updateSkillCooldowns();
+}
+
+function addXP(amount) {
+  G.xp += amount;
+  if (G.xp >= G.xpToNext) {
+    G.xp -= G.xpToNext;
+    G.playerZ = Math.min(118, G.playerZ + 1);
+    updateStatsFromZ();
+    addFloatText(G.playerX, G.playerY - 60, "LEVEL UP! Z=" + G.playerZ, "#60ffa0", 32);
+    spawnParticles(G.playerX, G.playerY, 50, "#60ffa0", 300);
+    showToast("⬆️ Tiến hoá: " + NAME[G.playerZ-1] + " (Z=" + G.playerZ + ")");
+  }
+  updateUI();
+}
+
+function showToast(text) {
+  const el = document.getElementById('toast');
+  el.innerHTML = text;
+  el.style.opacity = '1';
+  G.toastTimer = 2;
+}
+
+// ============================================================
+// BẮN ĐẠN (CHUỘT TRÁI)
+// ============================================================
+function getBulletStyle(z) {
+  let baseDmg = 10 + z * 1.5;
+  let speed = 600 + z * 2;
+  let size = 6 + z * 0.06;
+  if (z < 10) return { count: 1, spread: 0, speed, dmg: baseDmg, size, type: 'normal' };
+  if (z < 30) return { count: 2, spread: 0.15, speed, dmg: baseDmg, size, type: 'normal' };
+  if (z < 50) return { count: 3, spread: 0.25, speed, dmg: baseDmg, size, type: 'normal' };
+  if (z < 75) return { count: 1, spread: 0, speed, dmg: baseDmg * 1.5, size: size * 1.5, type: 'pierce' };
+  if (z < 100) return { count: 3, spread: 0.3, speed: speed * 1.2, dmg: baseDmg * 1.2, size, type: 'homing' };
+  return { count: 5, spread: 0.4, speed: speed * 1.5, dmg: baseDmg * 1.8, size: size * 1.2, type: 'explosive' };
+}
+
+function shoot() {
+  if (!G.active) return;
+  const style = getBulletStyle(G.playerZ);
+  
+  let dx, dy;
+  if (isTouchDevice) {
+    let nearest = null, minD = Infinity;
+    G.enemies.forEach(e => {
+      const d = Math.hypot(e.x - G.playerX, e.y - G.playerY);
+      if (d < minD) { minD = d; nearest = e; }
+    });
+    if (nearest) { dx = nearest.x - G.playerX; dy = nearest.y - G.playerY; } 
+    else { dx = 1; dy = 0; }
+  } else {
+    dx = G.mouse.x - G.playerX; dy = G.mouse.y - G.playerY;
+  }
+
+  const baseAngle = Math.atan2(dy, dx);
+  for (let i = 0; i < style.count; i++) {
+    let angleOffset = 0;
+    if (style.count > 1) angleOffset = (i - (style.count - 1) / 2) * style.spread;
+    const finalAngle = baseAngle + angleOffset;
+    
+    let finalDmg = style.dmg;
+    if (G.damageBuffTime > 0) finalDmg *= 1.5;
+
+    G.bullets.push({
+      x: G.playerX, y: G.playerY,
+      vx: Math.cos(finalAngle) * style.speed, vy: Math.sin(finalAngle) * style.speed,
+      dmg: finalDmg, radius: style.size, color: getColor(G.playerZ),
+      type: style.type, life: 2.5, isEnemy: false
+    });
+  }
+}
+
+// ============================================================
+// KỸ NĂNG Q (ĐỘC QUYỀN TỪNG NGUYÊN TỐ)
+// ============================================================
+function useQSkill(aimX, aimY, z, isDebug) {
+  const dx = aimX - G.playerX;
+  const dy = aimY - G.playerY;
+  const dist = Math.hypot(dx, dy) || 1;
+  const ang = Math.atan2(dy, dx);
+  const color = getColor(z);
+  
+  // Hàm hỗ trợ bắn đạn
+  const fireBullet = (angle, speed, dmg, size, type='normal', life=2) => {
+    let finalDmg = dmg;
+    if (G.damageBuffTime > 0) finalDmg *= 1.5;
+    G.bullets.push({
+      x: G.playerX, y: G.playerY,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      dmg: finalDmg, radius: size, color: color,
+      type: type, life: life, isEnemy: false
+    });
+  };
+
+  // Hàm hỗ trợ nổ diện rộng
+  const explode = (radius, dmg) => {
+    G.enemies.forEach(e => {
+      if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < radius) damageEnemy(e, dmg);
+    });
+    G.particles.push({ x: G.playerX, y: G.playerY, vx: 0, vy: 0, life: 0.6, maxLife: 0.6, color: color, size: radius, isRing: true });
+    G.shake = 20;
+  };
+
+  // Logic chiêu Q cho từng nguyên tố đặc biệt
+  switch(z) {
+    case 1: // H - Bom H
+      fireBullet(ang, 800, 50 + z * 6, 15, 'explosive');
+      if(!isDebug) showToast("💣 Bom H!");
+      break;
+    case 2: // He - Đẩy lùi
+      G.enemies.forEach(e => {
+        const d = Math.hypot(e.x - G.playerX, e.y - G.playerY);
+        if (d < 250) {
+          const a = Math.atan2(e.y - G.playerY, e.x - G.playerX);
+          e.x += Math.cos(a) * 150; e.y += Math.sin(a) * 150;
+          damageEnemy(e, 10);
+        }
+      });
+      if(!isDebug) showToast("💨 Luồng Khí Heli!");
+      break;
+    case 6: // C - Kim Cương (Bắn tia xuyên phá)
+      fireBullet(ang, 1200, 60 + z * 4, 8, 'pierce');
+      if(!isDebug) showToast("💎 Tia Kim Cương!");
+      break;
+    case 7: // N - Đóng băng
+      G.enemies.forEach(e => {
+        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 300) {
+          e.stunTime = 2.0; // Sẽ xử lý stun bên dưới
+          damageEnemy(e, 10);
+        }
+      });
+      if(!isDebug) showToast("❄️ Đóng Băng!");
+      break;
+    case 8: // O - Thiêu đốt
+      G.enemies.forEach(e => {
+        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 400) {
+          e.burnTime = 3.0; e.burnDmg = 5 + z;
+        }
+      });
+      if(!isDebug) showToast("🔥 Oxy Hóa!");
+      break;
+    case 11: // Na - Nổ lớn
+      explode(250, 80 + z * 5);
+      if(!isDebug) showToast("💥 Nổ Natri!");
+      break;
+    case 26: // Fe - Hóa Sắt (Bất tử + Tăng tốc)
+      G.invulnerableTime = 2.0;
+      addFloatText(G.playerX, G.playerY - 50, "⛨ HÓA SẮT", '#c0d0ff', 24);
+      if(!isDebug) showToast("⛨ Hóa Sắt (2s)!");
+      break;
+    case 29: // Cu - Sét (Đạn nảy)
+      fireBullet(ang, 800, 40 + z * 3, 10, 'homing'); // Dùng tạm homing cho giống sét
+      if(!isDebug) showToast("⚡ Sét Đồng!");
+      break;
+    case 47: // Ag - Hồi máu
+      G.hp = Math.min(G.maxHp, G.hp + 30 + z * 2);
+      addFloatText(G.playerX, G.playerY - 30, "+" + Math.floor(30 + z * 2) + " HP", '#60ffa0', 24);
+      if(!isDebug) showToast("✨ Hồi Máu!");
+      break;
+    case 79: // Au - Hóa vàng (Làm chậm/Choáng)
+      G.enemies.forEach(e => {
+        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 350) {
+          e.stunTime = 3.0;
+          e.color = '#ffd700';
+        }
+      });
+      if(!isDebug) showToast("👑 Hóa Vàng!");
+      break;
+    case 92: // U - Phân hạch (Nổ siêu to)
+      explode(400, 150 + z * 6);
+      if(!isDebug) showToast("☢️ Phân Hạch!");
+      break;
+      
+    // Mặc định theo nhóm nếu không có trong danh sách đặc biệt
+    default:
+      const type = getElementType(z);
+      if (type === 'metal') {
+        explode(180 + z * 2, 40 + z * 4);
+        if(!isDebug) showToast("💥 Nổ Kim Loại!");
+      } else if (type === 'nonmetal') {
+        for (let i = -3; i <= 3; i++) fireBullet(ang + i * 0.15, 900, 35 + z * 2, 8);
+        if(!isDebug) showToast("🔫 Bắn Tỏa!");
+      } else {
+        // Khí hiếm - Tia laser
+        G.bullets.push({
+          x: G.playerX, y: G.playerY, vx: 0, vy: 0, dmg: 0, owner: G.player,
+          type: 'beam', life: 0.25, radius: 0, color: getColor(z),
+          beamEndX: G.playerX + Math.cos(ang) * 1000, beamEndY: G.playerY + Math.sin(ang) * 1000,
+          beamOriginX: G.playerX, beamOriginY: G.playerY
+        });
+        // Beam sát thương
+        G.enemies.forEach(e => {
+          const distToBeam = Math.abs((e.x - G.playerX) * Math.sin(ang) - (e.y - G.playerY) * Math.cos(ang));
+          if (distToBeam < 40) damageEnemy(e, 60 + z * 4);
+        });
+        if(!isDebug) showToast("☄️ Tia Laser!");
+      }
+      break;
+  }
+}
+
+// ============================================================
+// KỸ NĂNG KHÁC (E, R, T)
+// ============================================================
+function flashSkillBtn(idx) {
+  const btn = document.getElementById(['skillQ','skillE','skillR', 'skillT'][idx]);
+  btn.classList.add('flash');
+  setTimeout(() => btn.classList.remove('flash'), 150);
+}
+
+function useSkill(index, isDebug = false) {
+  if (!G.active) return;
+  const skill = G.skills[index];
+  
+  if (!isDebug && skill.cd > 0) {
+    showToast("⏳ Đang hồi chiêu! Còn " + skill.cd.toFixed(1) + "s");
+    return;
+  }
+  
+  if (index === 3) {
+    const maxClones = getMaxClones(G.playerZ);
+    if (G.clones.length >= maxClones) {
+      showToast("⚠️ Đã đạt giới hạn " + maxClones + " bản sao!");
+      return;
+    }
+  }
+
+  if (isDebug) { skill.cd = 0.5; showToast("🛠️ [DEBUG] Chiêu " + ['Q','E','R','T'][index] + " hồi chiêu 0.5s"); }
+  else { skill.cd = skill.maxCd; }
+  
+  flashSkillBtn(index);
+  const z = G.playerZ;
+  const color = getColor(z);
+  spawnParticles(G.playerX, G.playerY, 25, color, 250);
+
+  let aimX = G.mouse.x, aimY = G.mouse.y;
+  if (isTouchDevice) {
+    let nearest = null, minD = Infinity;
+    G.enemies.forEach(e => {
+      const d = Math.hypot(e.x - G.playerX, e.y - G.playerY);
+      if (d < minD) { minD = d; nearest = e; }
+    });
+    if (nearest) { aimX = nearest.x; aimY = nearest.y; } 
+    else { aimX = G.playerX + 1; aimY = G.playerY; }
+  }
+
+  if (index === 0) {
+    // Gọi hàm Q độc quyền
+    useQSkill(aimX, aimY, z, isDebug);
+  }
+  else if (index === 1) {
+    G.shieldTime = 2.5;
+    spawnParticles(G.playerX, G.playerY, 40, '#60ffff', 200);
+    addFloatText(G.playerX, G.playerY - 50, "🛡 SHIELD READY", '#60ffff', 24);
+    if (!isDebug) showToast("🛡 Khiên bật! Chặn đòn & Phản đạn!");
+  }
+  else if (index === 2) {
+    const type = getElementType(G.playerZ);
+    if (type === 'metal') {
+      G.invulnerableTime = 12;
+      addFloatText(G.playerX, G.playerY - 50, "⛨ KIM LOẠI HÓA (12s)", '#c0d0ff', 24);
+      if (!isDebug) showToast("⛨ Kim loại hóa! Bất tử 12s");
+    } else if (type === 'nonmetal') {
+      const isMetal = Math.random() > 0.5;
+      if (isMetal) {
+        G.invulnerableTime = 9;
+        addFloatText(G.playerX, G.playerY - 50, "⛨ HÓA KIM (9s)", '#c0d0ff', 24);
+        if (!isDebug) showToast("⛨ Phi kim hóa Kim (9s)!");
+      } else {
+        G.stealthTime = 5;
+        addFloatText(G.playerX, G.playerY - 50, "☁ HÓA KHÍ (5s)", '#80c8ff', 24);
+        if (!isDebug) showToast("☁ Phi kim hóa Khí (5s)!");
+      }
+      G.skills.forEach((s, i) => { if (i !== 2 && s.cd > 0) s.cd = Math.max(0, s.cd - 3); });
+    } else if (type === 'noble_gas') {
+      G.stealthTime = 8;
+      addFloatText(G.playerX, G.playerY - 50, "☁ TÀNG HÌNH (8s)", '#80c8ff', 24);
+      if (!isDebug) showToast("☁ Khí hiếm! Tàng hình 8s");
+    }
+  }
+  else if (index === 3) {
+    const maxC = getMaxClones(G.playerZ);
+    let toSpawn = Math.max(1, Math.ceil(G.playerZ / 15));
+    if (G.clones.length + toSpawn > maxC) toSpawn = maxC - G.clones.length;
+    
+    for (let i = 0; i < toSpawn; i++) {
+      G.clones.push({
+        x: G.playerX, y: G.playerY, angle: Math.random() * Math.PI * 2,
+        life: 10, shootTimer: Math.random() * 0.5
+      });
+    }
+    spawnParticles(G.playerX, G.playerY, 30, '#a0ffa0', 250);
+    if (!isDebug) showToast("👥 Triệu hồi " + toSpawn + " bản sao! (" + G.clones.length + "/" + maxC + ")");
+  }
+}
+
+// ============================================================
+// ENEMY & LOGIC
+// ============================================================
+function spawnEnemy() {
+  if (!G.active) return;
+  const maxEnemies = 5 + Math.floor(G.playerZ / 5);
+  if (G.enemies.length >= maxEnemies) return;
+
+  let ez = Math.max(1, Math.min(118, G.playerZ + Math.floor(Math.random() * 11) - 5));
+  let x, y;
+  const side = Math.floor(Math.random() * 4);
+  if (side === 0) { x = Math.random() * W; y = -50; }
+  else if (side === 1) { x = W + 50; y = Math.random() * H; }
+  else if (side === 2) { x = Math.random() * W; y = H + 50; }
+  else { x = -50; y = Math.random() * H; }
+  
+  const cat = getCategory(ez);
+  let hp = 20 + ez * 8; 
+  let dmg = 3 + ez * 1.5;
+  let speed = 50 + Math.random() * 40 + ez * 1.5;
+  if (cat === 'alkaline') hp *= 1.5;
+  if (cat === 'transition') speed *= 1.3;
+  if (cat === 'actinide' || cat === 'post') { hp *= 1.3; dmg *= 1.2; }
+  
+  G.enemies.push({
+    x, y, z: ez, sym: SYM[ez-1], name: NAME[ez-1], color: getColor(ez),
+    hp, maxHp: hp, speed: speed * 0.5, dmg,
+    radius: 15 + ez * 0.1, attackTimer: 0, shootTimer: 1 + Math.random() * 2,
+    stunTime: 0, burnTime: 0, burnDmg: 0
+  });
+}
+
+function damageEnemy(e, amount) {
+  e.hp -= amount;
+  addFloatText(e.x, e.y - e.radius, Math.round(amount), '#ff8060', 18);
+  spawnParticles(e.x, e.y, 5, e.color, 100);
+  if (e.hp <= 0) {
+    G.kills++;
+    addXP(15 + e.z * 2);
+    spawnParticles(e.x, e.y, 20, e.color, 300);
+    document.getElementById('uiKills').textContent = G.kills;
+    e.dead = true;
+  }
+}
+
+function damagePlayer(amount) {
+  if (G.invulnerableTime > 0 || G.stealthTime > 0) return; 
+
+  if (G.shieldTime > 0) {
+    const heal = Math.max(5, Math.floor(amount * 0.5));
+    G.hp = Math.min(G.maxHp, G.hp + heal);
+    addFloatText(G.playerX, G.playerY - 30, "BLOCK! +" + heal + " HP", '#60ffff', 20);
+    spawnParticles(G.playerX, G.playerY, 10, '#60ffff', 150);
+    return;
+  }
+  
+  G.hp -= amount;
+  G.shake = Math.min(20, G.shake + amount);
+  addFloatText(G.playerX, G.playerY - 30, "-" + Math.round(amount), '#ff4060', 20);
+  if (G.hp <= 0) { G.hp = 0; gameOver(); }
+}
+
+function update(dt) {
+  if (!G.active) return;
+  G.time += dt;
+
+  G.skills.forEach(s => { if (s.cd > 0) s.cd = Math.max(0, s.cd - dt); });
+  if (G.shootTimer > 0) G.shootTimer -= dt;
+  if (G.shieldTime > 0) G.shieldTime -= dt;
+  if (G.invulnerableTime > 0) G.invulnerableTime -= dt;
+  if (G.damageBuffTime > 0) G.damageBuffTime -= dt;
+  if (G.stealthTime > 0) G.stealthTime -= dt;
+
+  if (G.toastTimer > 0) {
+    G.toastTimer -= dt;
+    if (G.toastTimer <= 0) document.getElementById('toast').style.opacity = '0';
+  }
+
+  let mx = 0, my = 0;
+  if (G.keys['w'] || G.keys['arrowup']) my -= 1;
+  if (G.keys['s'] || G.keys['arrowdown']) my += 1;
+  if (G.keys['a'] || G.keys['arrowleft']) mx -= 1;
+  if (G.keys['d'] || G.keys['arrowright']) mx += 1;
+  mx += G.joystick.x; my += G.joystick.y;
+
+  const len = Math.hypot(mx, my);
+  if (len > 1) { mx /= len; my /= len; }
+  
+  const pSpeed = 350;
+  G.playerX += mx * pSpeed * dt; G.playerY += my * pSpeed * dt;
+  G.playerX = Math.max(20, Math.min(W - 20, G.playerX));
+  G.playerY = Math.max(20, Math.min(H - 20, G.playerY));
+
+  if (G.mouse.down && G.shootTimer <= 0) {
+    shoot(); G.shootTimer = Math.max(0.08, 0.3 - G.playerZ * 0.002);
+  }
+
+  G.spawnTimer -= dt;
+  if (G.spawnTimer <= 0) {
+    spawnEnemy(); G.spawnTimer = Math.max(0.15, 1.5 - G.playerZ * 0.012); 
+  }
+
+  const pRadius = 18 + G.playerZ * 0.1;
+
+  // Bản sao
+  for (let i = G.clones.length - 1; i >= 0; i--) {
+    const c = G.clones[i]; c.life -= dt;
+    
+    const clonesPerRing = 15;
+    const ring = Math.floor(i / clonesPerRing);
+    const indexInRing = i % clonesPerRing;
+    const totalInThisRing = Math.min(clonesPerRing, G.clones.length - ring * clonesPerRing);
+    
+    c.angle = (indexInRing / totalInThisRing) * Math.PI * 2 + G.time * (1.5 + ring * 0.3);
+    const orbitRadius = 60 + ring * 30;
+    
+    const targetX = G.playerX + Math.cos(c.angle) * orbitRadius;
+    const targetY = G.playerY + Math.sin(c.angle) * orbitRadius;
+    
+    c.x += (targetX - c.x) * dt * 8; c.y += (targetY - c.y) * dt * 8;
+
+    c.shootTimer -= dt;
+    if (c.shootTimer <= 0) {
+      let nearest = null, minD = 700;
+      G.enemies.forEach(e => {
+        const d = Math.hypot(e.x - c.x, e.y - c.y);
+        if (d < minD) { minD = d; nearest = e; }
+      });
+      if (nearest) {
+        c.shootTimer = Math.max(0.2, 0.6 - G.playerZ * 0.005);
+        const dx = nearest.x - c.x; const dy = nearest.y - c.y; const ang = Math.atan2(dy, dx);
+        let cDmg = (10 + G.playerZ * 1.5) * 0.3;
+        if (G.damageBuffTime > 0) cDmg *= 1.5;
+        G.bullets.push({
+          x: c.x, y: c.y, vx: Math.cos(ang) * (600 + G.playerZ * 2), vy: Math.sin(ang) * (600 + G.playerZ * 2),
+          dmg: cDmg, radius: 5 + G.playerZ * 0.05, color: '#a0ffa0', type: 'normal', life: 2, isEnemy: false
+        });
+      }
+    }
+    if (c.life <= 0) { G.clones.splice(i, 1); spawnParticles(c.x, c.y, 5, '#a0ffa0', 100); }
+  }
+
+  // Kẻ địch
+  G.enemies.forEach(e => {
+    if (e.stunTime > 0) {
+      e.stunTime -= dt;
+      return; // Bị choáng không làm gì cả
+    }
+
+    if (e.burnTime > 0) {
+      e.burnTime -= dt;
+      if (Math.random() < 0.1) damageEnemy(e, e.burnDmg); // Trừ máu từ từ
+    }
+
+    const dx = G.playerX - e.x; const dy = G.playerY - e.y; const dist = Math.hypot(dx, dy) || 1;
+    if (dist > 30) { e.x += (dx / dist) * e.speed * dt; e.y += (dy / dist) * e.speed * dt; }
+    
+    e.attackTimer -= dt;
+    if (dist < e.radius + 25 && e.attackTimer <= 0) { damagePlayer(e.dmg); e.attackTimer = 1.0; }
+
+    e.shootTimer -= dt;
+    if (e.shootTimer <= 0 && dist < 700 && dist > 80 && G.stealthTime <= 0) {
+      e.shootTimer = Math.max(0.4, 1.8 - G.playerZ * 0.01) + Math.random() * 1.5;
+      const ang = Math.atan2(dy, dx);
+      G.bullets.push({
+        x: e.x, y: e.y, vx: Math.cos(ang) * (400 + G.playerZ * 2), vy: Math.sin(ang) * (400 + G.playerZ * 2),
+        dmg: e.dmg, radius: 7, color: '#ff3060', type: 'normal', life: 3, isEnemy: true
+      });
+    }
+  });
+
+  // Đạn
+  for (let i = G.bullets.length - 1; i >= 0; i--) {
+    const b = G.bullets[i]; b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+
+    if (b.type === 'homing' && !b.isEnemy && G.enemies.length > 0) {
+      let nearest = null, minD = Infinity;
+      G.enemies.forEach(e => {
+        const d = Math.hypot(e.x - b.x, e.y - b.y);
+        if (d < minD) { minD = d; nearest = e; }
+      });
+      if (nearest) {
+        const spd = Math.hypot(b.vx, b.vy); const ang = Math.atan2(nearest.y - b.y, nearest.x - b.x);
+        const curAng = Math.atan2(b.vy, b.vx);
+        let diff = ang - curAng;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const newAng = curAng + Math.sign(diff) * Math.min(Math.abs(diff), 5 * dt);
+        b.vx = Math.cos(newAng) * spd; b.vy = Math.sin(newAng) * spd;
+      }
+    }
+
+    if (b.isEnemy) {
+      if (Math.hypot(G.playerX - b.x, G.playerY - b.y) < pRadius + b.radius) {
+        if (G.invulnerableTime > 0 || G.stealthTime > 0) b.life = 0; 
+        else if (G.shieldTime > 0) {
+          b.isEnemy = false; b.vx *= -1.5; b.vy *= -1.5; b.dmg *= 2; b.color = getColor(G.playerZ);
+          b.x += b.vx * dt * 3; b.y += b.vy * dt * 3;
+          const heal = Math.max(5, Math.floor(b.dmg * 0.5));
+          G.hp = Math.min(G.maxHp, G.hp + heal);
+          addFloatText(G.playerX, G.playerY - 30, "BLOCK! +" + heal + " HP", '#60ffff', 20);
+          showToast("🛡 Phản đòn!");
+        } else { damagePlayer(b.dmg); b.life = 0; }
+      }
+    } else {
+      for (let e of G.enemies) {
+        if (e.dead) continue;
+        if (Math.hypot(e.x - b.x, e.y - b.y) < e.radius + b.radius) {
+          damageEnemy(e, b.dmg);
+          if (b.type === 'explosive') {
+            G.enemies.forEach(other => {
+              if (other !== e && !other.dead && Math.hypot(other.x - b.x, other.y - b.y) < 100) damageEnemy(other, b.dmg * 0.5);
+            });
+            spawnParticles(b.x, b.y, 20, b.color, 200);
+          }
+          if (b.type !== 'pierce') b.life = 0;
+          break;
+        }
+      }
+    }
+    if (b.life <= 0 || b.x < -100 || b.x > W + 100 || b.y < -100 || b.y > H + 100) G.bullets.splice(i, 1);
+  }
+
+  G.enemies = G.enemies.filter(e => !e.dead);
+
+  for (let i = G.particles.length - 1; i >= 0; i--) {
+    const p = G.particles[i]; p.life -= dt;
+    if (p.life <= 0) { G.particles.splice(i, 1); continue; }
+    if (!p.isRing) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.95; p.vy *= 0.95; }
+  }
+  for (let i = G.floatTexts.length - 1; i >= 0; i--) {
+    const ft = G.floatTexts[i]; ft.life -= dt; ft.y -= 50 * dt;
+    if (ft.life <= 0) G.floatTexts.splice(i, 1);
+  }
+
+  G.shake *= 0.9;
+  updateUI();
+}
+
+function render() {
+  ctx.fillStyle = '#050810'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(40,80,140,0.1)'; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  G.bgStars.forEach(s => {
+    ctx.globalAlpha = s.a; ctx.fillStyle = '#80c0ff';
+    ctx.beginPath(); ctx.arc(s.x % W, s.y % H, s.r, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  ctx.save();
+  if (G.shake > 1) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
+
+  // Kẻ địch
+  G.enemies.forEach(e => {
+    ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(e.x, e.y + e.radius * 0.9, e.radius * 0.9, e.radius * 0.3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.shadowColor = e.color; ctx.shadowBlur = 20;
+    const grad = ctx.createRadialGradient(e.x - e.radius*0.3, e.y - e.radius*0.3, 0, e.x, e.y, e.radius);
+    grad.addColorStop(0, lighten(e.color, 60)); grad.addColorStop(1, darken(e.color, 40));
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `bold ${Math.floor(e.radius * 0.9)}px "Segoe UI"`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(e.sym, e.x, e.y + 2);
+
+    const hpPct = e.hp / e.maxHp;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(e.x - e.radius, e.y - e.radius - 10, e.radius * 2, 4);
+    ctx.fillStyle = hpPct > 0.5 ? '#60ffa0' : '#ff6060'; ctx.fillRect(e.x - e.radius, e.y - e.radius - 10, e.radius * 2 * hpPct, 4);
+  });
+
+  // Đạn
+  G.bullets.forEach(b => {
+    if (b.type === 'beam') {
+      ctx.globalAlpha = b.life / 0.25;
+      ctx.strokeStyle = b.color; ctx.lineWidth = 20; ctx.lineCap = 'round';
+      ctx.shadowColor = b.color; ctx.shadowBlur = 30;
+      ctx.beginPath(); ctx.moveTo(b.beamOriginX, b.beamOriginY); ctx.lineTo(b.beamEndX, b.beamEndY); ctx.stroke();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(b.beamOriginX, b.beamOriginY); ctx.lineTo(b.beamEndX, b.beamEndY); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    } else {
+      ctx.shadowColor = b.color; ctx.shadowBlur = 15;
+      ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.4, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  });
+
+  // Hạt
+  G.particles.forEach(p => {
+    ctx.globalAlpha = p.life / p.maxLife;
+    if (p.isRing) { ctx.strokeStyle = p.color; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 - p.life / p.maxLife), 0, Math.PI*2); ctx.stroke(); }
+    else { ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI*2); ctx.fill(); }
+  });
+  ctx.globalAlpha = 1;
+
+  // Bản sao
+  G.clones.forEach(c => {
+    ctx.globalAlpha = c.life < 2 ? 0.5 + 0.5 * Math.sin(G.time * 20) : 1;
+    const pRadius = 10 + G.playerZ * 0.05; 
+    ctx.shadowColor = '#a0ffa0'; ctx.shadowBlur = 10; ctx.fillStyle = '#a0ffa0';
+    ctx.beginPath(); ctx.arc(c.x, c.y, pRadius, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.font = `bold ${Math.floor(pRadius * 0.9)}px "Segoe UI"`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    ctx.fillText(SYM[G.playerZ-1], c.x, c.y + 1); ctx.globalAlpha = 1;
+  });
+
+  // Người chơi
+  if (G.active || G.hp > 0) {
+    const pColor = getColor(G.playerZ);
+    const pRadius = 18 + G.playerZ * 0.1;
+    ctx.globalAlpha = (G.stealthTime > 0 ? 0.25 : 0.3); ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(G.playerX, G.playerY + pRadius * 0.9, pRadius * 0.9, pRadius * 0.3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if (G.invulnerableTime > 0) {
+      ctx.strokeStyle = '#e0e8ff'; ctx.lineWidth = 6; ctx.shadowColor = '#c0d0ff'; ctx.shadowBlur = 30;
+      ctx.beginPath(); ctx.arc(G.playerX, G.playerY, pRadius + 6, 0, Math.PI*2); ctx.stroke(); ctx.shadowBlur = 0;
+    }
+    if (G.shieldTime > 0) {
+      const pulse = 0.5 + 0.5 * Math.sin(G.time * 10);
+      ctx.strokeStyle = '#60ffff'; ctx.lineWidth = 4; ctx.shadowColor = '#60ffff'; ctx.shadowBlur = 30;
+      ctx.globalAlpha = pulse; ctx.beginPath(); ctx.arc(G.playerX, G.playerY, pRadius + 10, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = 'rgba(96, 255, 255, 0.2)'; ctx.beginPath(); ctx.arc(G.playerX, G.playerY, pRadius + 10, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    }
+
+    if (G.stealthTime > 0) ctx.globalAlpha = 0.4; 
+    ctx.shadowColor = pColor; ctx.shadowBlur = 25;
+    const grad = ctx.createRadialGradient(G.playerX - pRadius*0.3, G.playerY - pRadius*0.3, 0, G.playerX, G.playerY, pRadius);
+    grad.addColorStop(0, lighten(pColor, 80)); grad.addColorStop(1, darken(pColor, 30));
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(G.playerX, G.playerY, pRadius, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `bold ${Math.floor(pRadius * 0.9)}px "Segoe UI"`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+    ctx.fillText(SYM[G.playerZ-1], G.playerX, G.playerY + 2);
+    ctx.globalAlpha = 1;
+    
+    let aimX = G.mouse.x, aimY = G.mouse.y;
+    if (isTouchDevice && G.enemies.length > 0) {
+      let nearest = G.enemies[0]; let minD = Infinity;
+      G.enemies.forEach(e => {
+        const d = Math.hypot(e.x - G.playerX, e.y - G.playerY);
+        if (d < minD) { minD = d; nearest = e; }
+      });
+      aimX = nearest.x; aimY = nearest.y;
+    }
+    
+    if (aimX !== 0 || aimY !== 0) {
+      const dx = aimX - G.playerX; const dy = aimY - G.playerY; const ang = Math.atan2(dy, dx);
+      ctx.strokeStyle = pColor; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(G.playerX + Math.cos(ang) * pRadius, G.playerY + Math.sin(ang) * pRadius);
+      ctx.lineTo(G.playerX + Math.cos(ang) * (pRadius + 15), G.playerY + Math.sin(ang) * (pRadius + 15)); ctx.stroke();
+    }
+  }
+
+  G.floatTexts.forEach(ft => {
+    ctx.globalAlpha = Math.min(1, ft.life * 2); ctx.font = `bold ${ft.size}px "Segoe UI"`;
+    ctx.textAlign = 'center'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
+    ctx.strokeText(ft.text, ft.x, ft.y); ctx.fillStyle = ft.color; ctx.fillText(ft.text, ft.x, ft.y);
+  });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function updateUI() {
+  document.getElementById('uiSym').textContent = SYM[G.playerZ-1];
+  document.getElementById('uiSym').style.color = getColor(G.playerZ);
+  document.getElementById('uiName').textContent = NAME[G.playerZ-1];
+  document.getElementById('uiZ').textContent = "Z = " + G.playerZ + " / 118";
+  
+  const hpPct = Math.max(0, (G.hp / G.maxHp) * 100);
+  document.getElementById('uiHpBar').style.width = hpPct + '%';
+  document.getElementById('uiHpBar').style.background = hpPct > 50 ? 'linear-gradient(90deg,#20d080,#60ffa0)' : hpPct > 25 ? 'linear-gradient(90deg,#d0c020,#ffe060)' : 'linear-gradient(90deg,#d02020,#ff6060)';
+  document.getElementById('uiHpText').textContent = `${Math.max(0, Math.ceil(G.hp))} / ${Math.ceil(G.maxHp)}`;
+
+  const xpPct = Math.max(0, (G.xp / G.xpToNext) * 100);
+  document.getElementById('uiXpBar').style.width = xpPct + '%';
+  document.getElementById('uiXpText').textContent = `${Math.floor(G.xp)} / ${Math.floor(G.xpToNext)}`;
+
+  const maxC = getMaxClones(G.playerZ);
+  document.getElementById('cloneCount').textContent = G.clones.length + "/" + maxC;
+  document.getElementById('cloneCount').style.color = G.clones.length >= maxC ? '#ffa0a0' : '#a0ffa0';
+
+  G.skills.forEach((s, i) => {
+    const keys = ['skillQ', 'skillE', 'skillR', 'skillT'];
+    const cdKeys = ['cdQ', 'cdE', 'cdR', 'cdT'];
+    const btn = document.getElementById(keys[i]); const cdOverlay = document.getElementById(cdKeys[i]);
+    
+    if (s.cd > 0) {
+      btn.classList.remove('ready'); btn.classList.add('cooldown-active');
+      cdOverlay.style.height = (s.cd / s.maxCd * 100) + '%'; cdOverlay.textContent = Math.ceil(s.cd);
+    } else {
+      btn.classList.add('ready'); btn.classList.remove('cooldown-active'); cdOverlay.style.height = '0%';
+    }
+  });
+}
+
+function lighten(hex, amt) { const n = parseInt(hex.slice(1), 16); return `rgb(${Math.min(255,((n>>16)&0xff)+amt)},${Math.min(255,((n>>8)&0xff)+amt)},${Math.min(255,(n&0xff)+amt)})`; }
+function darken(hex, amt) { const n = parseInt(hex.slice(1), 16); return `rgb(${Math.max(0,((n>>16)&0xff)-amt)},${Math.max(0,((n>>8)&0xff)-amt)},${Math.max(0,(n&0xff)-amt)})`; }
+function addFloatText(x, y, text, color, size) { G.floatTexts.push({ x, y, text, color, size, life: 1 }); }
+function spawnParticles(x, y, count, color, speed) {
+  for (let i = 0; i < count; i++) {
+    const ang = Math.random() * Math.PI * 2; const spd = speed * (0.5 + Math.random());
+    G.particles.push({ x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: 1, maxLife: 1, color, size: 2 + Math.random() * 3 });
+  }
+}
+
+function loop(now) {
+  const dt = Math.min(0.05, (now - G.lastTime) / 1000 || 0);
+  G.lastTime = now;
+  if (G.active) update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ============================================================
+// INPUT
+// ============================================================
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase(); G.keys[k] = true;
+  if (k === 'q') { e.preventDefault(); useSkill(0, G.keys['m']); }
+  if (k === 'e') { e.preventDefault(); useSkill(1, G.keys['m']); }
+  if (k === 'r') { e.preventDefault(); useSkill(2, G.keys['m']); }
+  if (k === 't') { e.preventDefault(); useSkill(3, G.keys['m']); }
+  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { G.keys[e.key.toLowerCase()] = false; });
+window.addEventListener('mousemove', e => { G.mouse.x = e.clientX; G.mouse.y = e.clientY; });
+window.addEventListener('mousedown', e => { if (e.target.id !== 'mobileControls' && e.button === 0) G.mouse.down = true; });
+window.addEventListener('mouseup', e => { if (e.button === 0) G.mouse.down = false; });
+
+const joyZone = document.getElementById('joystickZone');
+const joyKnob = document.getElementById('joystickKnob');
+let joyCenter = { x: 0, y: 0 }; let joyActive = false;
+
+function handleTouchStart(e) {
+  e.preventDefault(); if (isTouchDevice) G.mouse.down = false;
+  const touch = e.touches[0]; const rect = joyZone.getBoundingClientRect();
+  joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+  joyActive = true; updateJoystick(touch.clientX, touch.clientY);
+}
+function handleTouchMove(e) {
+  e.preventDefault(); if (!joyActive) return;
+  updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
+}
+function handleTouchEnd(e) {
+  e.preventDefault(); joyActive = false;
+  joyKnob.style.transform = `translate(-50%, -50%)`; G.joystick.x = 0; G.joystick.y = 0;
+}
+function updateJoystick(x, y) {
+  const maxDist = 50; let dx = x - joyCenter.x; let dy = y - joyCenter.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
+  joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  G.joystick.x = dx / maxDist; G.joystick.y = dy / maxDist;
+}
+joyZone.addEventListener('touchstart', handleTouchStart, { passive: false });
+joyZone.addEventListener('touchmove', handleTouchMove, { passive: false });
+joyZone.addEventListener('touchend', handleTouchEnd, { passive: false });
+joyZone.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+const attackBtn = document.getElementById('attackBtn');
+attackBtn.addEventListener('touchstart', e => { e.preventDefault(); G.mouse.down = true; }, { passive: false });
+attackBtn.addEventListener('touchend', e => { e.preventDefault(); G.mouse.down = false; }, { passive: false });
+attackBtn.addEventListener('touchcancel', e => { e.preventDefault(); G.mouse.down = false; }, { passive: false });
+
+['skillQ', 'skillE', 'skillR', 'skillT'].forEach((id, index) => {
+  const btn = document.getElementById(id);
+  btn.addEventListener('touchstart', (e) => { e.preventDefault(); useSkill(index); }, { passive: false });
+  btn.addEventListener('click', (e) => { e.preventDefault(); useSkill(index); });
+});
+
+function startGame() {
+  G.active = true; G.playerZ = 1; G.hp = 100; G.maxHp = 100; G.xp = 0; G.xpToNext = 50; G.kills = 0;
+  G.playerX = W / 2; G.playerY = H / 2;
+  G.enemies = []; G.bullets = []; G.particles = []; G.floatTexts = []; G.clones = [];
+  G.skills.forEach(s => { s.cd = 0; });
+  G.spawnTimer = 1; G.shootTimer = 0; G.shake = 0; G.time = 0;
+  G.shieldTime = 0; G.invulnerableTime = 0; G.damageBuffTime = 0; G.stealthTime = 0;
+  
+  updateStatsFromZ();
+  document.getElementById('uiKills').textContent = 0;
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('gameOverScreen').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  document.getElementById('skillBar').style.display = 'flex';
+}
+
+function gameOver() {
+  G.active = false;
+  document.getElementById('finalZ').textContent = "Z = " + G.playerZ + " (" + SYM[G.playerZ-1] + ")";
+  document.getElementById('finalName').textContent = NAME[G.playerZ-1];
+  document.getElementById('finalKills').textContent = G.kills;
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('skillBar').style.display = 'none';
+  document.getElementById('gameOverScreen').style.display = 'flex';
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', startGame);
+
+G.lastTime = performance.now();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
