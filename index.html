@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Atomic Survival 118 - Tiến hoá từ H đến Og</title>
+<title>Atomic Survival 118 - Tiến hoá nguyên tử</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#050810; font-family:'Segoe UI',system-ui,sans-serif; color:#e0e8ff; overflow:hidden; user-select:none; -webkit-user-select:none; }
@@ -28,10 +28,16 @@
   .level-name { font-size:1.2rem; font-weight:600; }
   .level-z { font-size:0.8rem; color:#8ab0d8; }
   
-  .bar-label { display:flex; justify-content:space-between; font-size:0.72rem; color:#7a9cc0; margin-bottom:3px; margin-top:6px; }
-  .bar-bg { height:12px; background:#0a1220; border-radius:8px; overflow:hidden; border:1px solid rgba(80,160,255,0.3); }
+  .bar-label { display:flex; justify-content:space-between; font-size:0.72rem; color:#7a9cc0; margin-bottom:3px; margin-top:6px; font-weight: 600; }
+  .bar-bg { height:12px; background:#0a1220; border-radius:8px; overflow:hidden; transition: border-color 0.3s, box-shadow 0.3s; border:1px solid rgba(80,160,255,0.3); }
+  
   .hp-fill { height:100%; width:100%; background:linear-gradient(90deg,#20d080,#60ffa0); box-shadow:0 0 10px rgba(80,255,160,0.4); transition:width 0.1s linear; }
   .xp-fill { height:100%; width:0%; background:linear-gradient(90deg,#a060ff,#ff40a0); box-shadow:0 0 10px rgba(200,80,255,0.6); transition:width 0.2s linear; }
+  .st-fill { height:100%; width:100%; background:linear-gradient(90deg,#ffb020,#ffff60); box-shadow: 0 0 12px rgba(255,220,80,0.6); transition:width 0.1s linear; }
+
+  /* Viền báo hiệu hồi ST */
+  .bar-bg.st-fast { border-color: #ffff60; box-shadow: 0 0 8px rgba(255, 220, 80, 0.4); }
+  .bar-bg.st-slow { border-color: #ff6060; box-shadow: 0 0 8px rgba(255, 100, 100, 0.6); }
 
   .wave-info {
     background:rgba(60,20,20,0.7); border:1px solid rgba(255,100,80,0.4);
@@ -176,8 +182,16 @@
           <div class="level-z" id="uiZ">Z = 1</div>
         </div>
       </div>
+      
+      <!-- MÁU -->
       <div class="bar-label"><span>Máu (HP)</span><span id="uiHpText">100 / 100</span></div>
       <div class="bar-bg"><div class="hp-fill" id="uiHpBar"></div></div>
+      
+      <!-- THỂ LỰC (ST) -->
+      <div class="bar-label"><span>⚡ Thể lực (ST)</span><span id="uiStText">100 / 100</span></div>
+      <div class="bar-bg st-fast" id="uiStBarBg"><div class="st-fill" id="uiStBar"></div></div>
+
+      <!-- KINH NGHIỆM -->
       <div class="bar-label"><span>Kinh nghiệm (XP)</span><span id="uiXpText">0 / 100</span></div>
       <div class="bar-bg"><div class="xp-fill" id="uiXpBar"></div></div>
     </div>
@@ -211,7 +225,7 @@
   </div>
   <div class="skill-btn" id="skillT">
     <div class="key-hint">T</div>
-    <div class="icon" style="color:#a0ffa0">✦</div>
+    <div class="icon" style="color:#a0ffa0; font-size:2rem; line-height:0.5;">+</div>
     <div class="name">Nhân bản<br><span class="cd-text" id="tCdText">(15s)</span></div>
     <div class="cooldown-overlay" id="cdT"></div>
     <div class="clone-count" id="cloneCount">0/1</div>
@@ -230,7 +244,7 @@
   </div>
   <div class="desc" style="font-size:0.9rem; color:#7a9cc0; margin-top:10px;">
     <span id="controlHint">
-      <b>WASD</b> di chuyển · <b>Chuột trái</b> bắn đạn<br>
+      <b>WASD</b> di chuyển · <b>Shift</b> để chạy (tốn ST) · <b>Chuột trái</b> bắn<br>
       <b>Q</b>: Chiêu độc quyền · <b>E</b>: Khiên · <b>R</b>: Siêu năng lực · <b>T</b>: Nhân bản
     </span>
   </div>
@@ -255,7 +269,7 @@
 const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 if (isTouchDevice) {
   document.body.classList.add('is-touch');
-  document.getElementById('controlHint').innerHTML = "<b>Joystick</b> di chuyển · <b>Nút ⚔️</b> bắn đạn<br><b>Chạm nút Q, E, R, T</b> để dùng chiêu";
+  document.getElementById('controlHint').innerHTML = "<b>Joystick</b> di chuyển (kéo sát viền để chạy) · <b>Nút ⚔️</b> bắn đạn<br><b>Chạm nút Q, E, R, T</b> để dùng chiêu";
 }
 
 // ============================================================
@@ -274,7 +288,7 @@ function getCategory(z) {
   if ((z>=21&&z<=30)||(z>=39&&z<=48)||(z>=72&&z<=80)||(z>=104&&z<=112)) return 'transition';
   if (z>=57 && z<=71) return 'lanthanide';
   if (z>=89 && z<=103) return 'actinide';
-  return 'post'; // 13, 31, 49, 50, 81-83, 113-116
+  return 'post'; 
 }
 
 function getElementType(z) {
@@ -309,6 +323,7 @@ const G = {
   active: false,
   playerZ: 1,
   hp: 100, maxHp: 100,
+  stamina: 100, maxStamina: 100,
   xp: 0, xpToNext: 50,
   kills: 0,
   playerX: 0, playerY: 0,
@@ -357,7 +372,6 @@ function updateSkillCooldowns() {
   }
   G.skills[3].maxCd = Math.max(2, 15 - Math.floor(G.playerZ / 12));
 
-  // Cập nhật text
   document.getElementById('qCdText').textContent = `(${G.skills[0].maxCd}s)`;
   document.getElementById('eCdText').textContent = `(${G.skills[1].maxCd}s)`;
   document.getElementById('rCdText').textContent = `(${G.skills[2].maxCd}s)`;
@@ -365,14 +379,12 @@ function updateSkillCooldowns() {
 
   G.skills.forEach(s => { if (s.cd > s.maxCd) s.cd = s.maxCd; });
   
-  // Cập nhật chữ cho R
   const nameR = document.getElementById('nameR');
   const iconR = document.getElementById('iconR');
   if (type === 'metal') { nameR.childNodes[0].nodeValue = "Cứng"; iconR.textContent = '⛨'; }
   else if (type === 'nonmetal') { nameR.childNodes[0].nodeValue = "Hóa Kim/Khí"; iconR.textContent = '✹'; }
   else if (type === 'noble_gas') { nameR.childNodes[0].nodeValue = "Tàng hình"; iconR.textContent = '☁'; }
 
-  // Cập nhật chữ cho Q (Độc quyền theo nguyên tố)
   const nameQ = document.getElementById('nameQ');
   const iconQ = document.getElementById('iconQ');
   const z = G.playerZ;
@@ -403,6 +415,7 @@ function updateSkillCooldowns() {
 function updateStatsFromZ() {
   G.maxHp = 100 + G.playerZ * 8;
   G.hp = G.maxHp;
+  G.stamina = G.maxStamina;
   G.xpToNext = 50 + G.playerZ * 30;
   updateSkillCooldowns();
 }
@@ -487,7 +500,6 @@ function useQSkill(aimX, aimY, z, isDebug) {
   const ang = Math.atan2(dy, dx);
   const color = getColor(z);
   
-  // Hàm hỗ trợ bắn đạn
   const fireBullet = (angle, speed, dmg, size, type='normal', life=2) => {
     let finalDmg = dmg;
     if (G.damageBuffTime > 0) finalDmg *= 1.5;
@@ -499,7 +511,6 @@ function useQSkill(aimX, aimY, z, isDebug) {
     });
   };
 
-  // Hàm hỗ trợ nổ diện rộng
   const explode = (radius, dmg) => {
     G.enemies.forEach(e => {
       if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < radius) damageEnemy(e, dmg);
@@ -508,94 +519,54 @@ function useQSkill(aimX, aimY, z, isDebug) {
     G.shake = 20;
   };
 
-  // Logic chiêu Q cho từng nguyên tố đặc biệt
   switch(z) {
-    case 1: // H - Bom H
-      fireBullet(ang, 800, 50 + z * 6, 15, 'explosive');
-      if(!isDebug) showToast("💣 Bom H!");
-      break;
-    case 2: // He - Đẩy lùi
+    case 1: fireBullet(ang, 800, 50 + z * 6, 15, 'explosive'); if(!isDebug) showToast("💣 Bom H!"); break;
+    case 2: 
       G.enemies.forEach(e => {
-        const d = Math.hypot(e.x - G.playerX, e.y - G.playerY);
-        if (d < 250) {
+        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 250) {
           const a = Math.atan2(e.y - G.playerY, e.x - G.playerX);
-          e.x += Math.cos(a) * 150; e.y += Math.sin(a) * 150;
-          damageEnemy(e, 10);
+          e.x += Math.cos(a) * 150; e.y += Math.sin(a) * 150; damageEnemy(e, 10);
         }
       });
-      if(!isDebug) showToast("💨 Luồng Khí Heli!");
-      break;
-    case 6: // C - Kim Cương (Bắn tia xuyên phá)
-      fireBullet(ang, 1200, 60 + z * 4, 8, 'pierce');
-      if(!isDebug) showToast("💎 Tia Kim Cương!");
-      break;
-    case 7: // N - Đóng băng
+      if(!isDebug) showToast("💨 Luồng Khí Heli!"); break;
+    case 6: fireBullet(ang, 1200, 60 + z * 4, 8, 'pierce'); if(!isDebug) showToast("💎 Tia Kim Cương!"); break;
+    case 7: 
       G.enemies.forEach(e => {
-        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 300) {
-          e.stunTime = 2.0; // Sẽ xử lý stun bên dưới
-          damageEnemy(e, 10);
-        }
+        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 300) { e.stunTime = 2.0; damageEnemy(e, 10); }
       });
-      if(!isDebug) showToast("❄️ Đóng Băng!");
-      break;
-    case 8: // O - Thiêu đốt
+      if(!isDebug) showToast("❄️ Đóng Băng!"); break;
+    case 8: 
       G.enemies.forEach(e => {
-        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 400) {
-          e.burnTime = 3.0; e.burnDmg = 5 + z;
-        }
+        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 400) { e.burnTime = 3.0; e.burnDmg = 5 + z; }
       });
-      if(!isDebug) showToast("🔥 Oxy Hóa!");
-      break;
-    case 11: // Na - Nổ lớn
-      explode(250, 80 + z * 5);
-      if(!isDebug) showToast("💥 Nổ Natri!");
-      break;
-    case 26: // Fe - Hóa Sắt (Bất tử + Tăng tốc)
-      G.invulnerableTime = 2.0;
-      addFloatText(G.playerX, G.playerY - 50, "⛨ HÓA SẮT", '#c0d0ff', 24);
-      if(!isDebug) showToast("⛨ Hóa Sắt (2s)!");
-      break;
-    case 29: // Cu - Sét (Đạn nảy)
-      fireBullet(ang, 800, 40 + z * 3, 10, 'homing'); // Dùng tạm homing cho giống sét
-      if(!isDebug) showToast("⚡ Sét Đồng!");
-      break;
-    case 47: // Ag - Hồi máu
-      G.hp = Math.min(G.maxHp, G.hp + 30 + z * 2);
-      addFloatText(G.playerX, G.playerY - 30, "+" + Math.floor(30 + z * 2) + " HP", '#60ffa0', 24);
-      if(!isDebug) showToast("✨ Hồi Máu!");
-      break;
-    case 79: // Au - Hóa vàng (Làm chậm/Choáng)
+      if(!isDebug) showToast("🔥 Oxy Hóa!"); break;
+    case 11: explode(250, 80 + z * 5); if(!isDebug) showToast("💥 Nổ Natri!"); break;
+    case 26: 
+      G.invulnerableTime = 2.0; addFloatText(G.playerX, G.playerY - 50, "⛨ HÓA SẮT", '#c0d0ff', 24);
+      if(!isDebug) showToast("⛨ Hóa Sắt (2s)!"); break;
+    case 29: fireBullet(ang, 800, 40 + z * 3, 10, 'homing'); if(!isDebug) showToast("⚡ Sét Đồng!"); break;
+    case 47: 
+      G.hp = Math.min(G.maxHp, G.hp + 30 + z * 2); addFloatText(G.playerX, G.playerY - 30, "+" + Math.floor(30 + z * 2) + " HP", '#60ffa0', 24);
+      if(!isDebug) showToast("✨ Hồi Máu!"); break;
+    case 79: 
       G.enemies.forEach(e => {
-        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 350) {
-          e.stunTime = 3.0;
-          e.color = '#ffd700';
-        }
+        if (Math.hypot(e.x - G.playerX, e.y - G.playerY) < 350) { e.stunTime = 3.0; e.color = '#ffd700'; }
       });
-      if(!isDebug) showToast("👑 Hóa Vàng!");
-      break;
-    case 92: // U - Phân hạch (Nổ siêu to)
-      explode(400, 150 + z * 6);
-      if(!isDebug) showToast("☢️ Phân Hạch!");
-      break;
-      
-    // Mặc định theo nhóm nếu không có trong danh sách đặc biệt
+      if(!isDebug) showToast("👑 Hóa Vàng!"); break;
+    case 92: explode(400, 150 + z * 6); if(!isDebug) showToast("☢️ Phân Hạch!"); break;
     default:
       const type = getElementType(z);
-      if (type === 'metal') {
-        explode(180 + z * 2, 40 + z * 4);
-        if(!isDebug) showToast("💥 Nổ Kim Loại!");
-      } else if (type === 'nonmetal') {
+      if (type === 'metal') { explode(180 + z * 2, 40 + z * 4); if(!isDebug) showToast("💥 Nổ Kim Loại!"); }
+      else if (type === 'nonmetal') {
         for (let i = -3; i <= 3; i++) fireBullet(ang + i * 0.15, 900, 35 + z * 2, 8);
         if(!isDebug) showToast("🔫 Bắn Tỏa!");
       } else {
-        // Khí hiếm - Tia laser
         G.bullets.push({
           x: G.playerX, y: G.playerY, vx: 0, vy: 0, dmg: 0, owner: G.player,
           type: 'beam', life: 0.25, radius: 0, color: getColor(z),
           beamEndX: G.playerX + Math.cos(ang) * 1000, beamEndY: G.playerY + Math.sin(ang) * 1000,
           beamOriginX: G.playerX, beamOriginY: G.playerY
         });
-        // Beam sát thương
         G.enemies.forEach(e => {
           const distToBeam = Math.abs((e.x - G.playerX) * Math.sin(ang) - (e.y - G.playerY) * Math.cos(ang));
           if (distToBeam < 40) damageEnemy(e, 60 + z * 4);
@@ -652,7 +623,6 @@ function useSkill(index, isDebug = false) {
   }
 
   if (index === 0) {
-    // Gọi hàm Q độc quyền
     useQSkill(aimX, aimY, z, isDebug);
   }
   else if (index === 1) {
@@ -779,18 +749,36 @@ function update(dt) {
     if (G.toastTimer <= 0) document.getElementById('toast').style.opacity = '0';
   }
 
+  // Xử lý di chuyển
   let mx = 0, my = 0;
   if (G.keys['w'] || G.keys['arrowup']) my -= 1;
   if (G.keys['s'] || G.keys['arrowdown']) my += 1;
   if (G.keys['a'] || G.keys['arrowleft']) mx -= 1;
   if (G.keys['d'] || G.keys['arrowright']) mx += 1;
-  mx += G.joystick.x; my += G.joystick.y;
+  
+  mx += G.joystick.x; 
+  my += G.joystick.y;
 
   const len = Math.hypot(mx, my);
   if (len > 1) { mx /= len; my /= len; }
-  
-  const pSpeed = 350;
-  G.playerX += mx * pSpeed * dt; G.playerY += my * pSpeed * dt;
+
+  // LOGIC THỂ LỰC (STAMINA)
+  let pSpeed = 350;
+  let wantsToSprint = (G.keys['shift'] || Math.hypot(G.joystick.x, G.joystick.y) > 0.9) && (len > 0.1);
+
+  if (wantsToSprint && G.stamina > 0) {
+    pSpeed = 480; // ĐÃ GIẢM TỐC ĐỘ CHẠY XUỐNG 480
+    G.stamina -= 35 * dt; 
+    if (G.stamina < 0) G.stamina = 0;
+  } else {
+    // HỒI ST: CHẬM KHI DƯỚI 50
+    let regenRate = (G.stamina < 50) ? 10 : 20; 
+    G.stamina += regenRate * dt; 
+    if (G.stamina > G.maxStamina) G.stamina = G.maxStamina;
+  }
+
+  G.playerX += mx * pSpeed * dt; 
+  G.playerY += my * pSpeed * dt;
   G.playerX = Math.max(20, Math.min(W - 20, G.playerX));
   G.playerY = Math.max(20, Math.min(H - 20, G.playerY));
 
@@ -847,12 +835,12 @@ function update(dt) {
   G.enemies.forEach(e => {
     if (e.stunTime > 0) {
       e.stunTime -= dt;
-      return; // Bị choáng không làm gì cả
+      return; 
     }
 
     if (e.burnTime > 0) {
       e.burnTime -= dt;
-      if (Math.random() < 0.1) damageEnemy(e, e.burnDmg); // Trừ máu từ từ
+      if (Math.random() < 0.1) damageEnemy(e, e.burnDmg); 
     }
 
     const dx = G.playerX - e.x; const dy = G.playerY - e.y; const dist = Math.hypot(dx, dy) || 1;
@@ -955,7 +943,6 @@ function render() {
   ctx.save();
   if (G.shake > 1) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
 
-  // Kẻ địch
   G.enemies.forEach(e => {
     ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
     ctx.beginPath(); ctx.ellipse(e.x, e.y + e.radius * 0.9, e.radius * 0.9, e.radius * 0.3, 0, 0, Math.PI*2); ctx.fill();
@@ -978,7 +965,6 @@ function render() {
     ctx.fillStyle = hpPct > 0.5 ? '#60ffa0' : '#ff6060'; ctx.fillRect(e.x - e.radius, e.y - e.radius - 10, e.radius * 2 * hpPct, 4);
   });
 
-  // Đạn
   G.bullets.forEach(b => {
     if (b.type === 'beam') {
       ctx.globalAlpha = b.life / 0.25;
@@ -996,7 +982,6 @@ function render() {
     }
   });
 
-  // Hạt
   G.particles.forEach(p => {
     ctx.globalAlpha = p.life / p.maxLife;
     if (p.isRing) { ctx.strokeStyle = p.color; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 - p.life / p.maxLife), 0, Math.PI*2); ctx.stroke(); }
@@ -1004,7 +989,6 @@ function render() {
   });
   ctx.globalAlpha = 1;
 
-  // Bản sao
   G.clones.forEach(c => {
     ctx.globalAlpha = c.life < 2 ? 0.5 + 0.5 * Math.sin(G.time * 20) : 1;
     const pRadius = 10 + G.playerZ * 0.05; 
@@ -1015,7 +999,6 @@ function render() {
     ctx.fillText(SYM[G.playerZ-1], c.x, c.y + 1); ctx.globalAlpha = 1;
   });
 
-  // Người chơi
   if (G.active || G.hp > 0) {
     const pColor = getColor(G.playerZ);
     const pRadius = 18 + G.playerZ * 0.1;
@@ -1085,6 +1068,22 @@ function updateUI() {
   document.getElementById('uiHpBar').style.background = hpPct > 50 ? 'linear-gradient(90deg,#20d080,#60ffa0)' : hpPct > 25 ? 'linear-gradient(90deg,#d0c020,#ffe060)' : 'linear-gradient(90deg,#d02020,#ff6060)';
   document.getElementById('uiHpText').textContent = `${Math.max(0, Math.ceil(G.hp))} / ${Math.ceil(G.maxHp)}`;
 
+  // Cập nhật thanh ST và Viền
+  const stPct = Math.max(0, (G.stamina / G.maxStamina) * 100);
+  document.getElementById('uiStBar').style.width = stPct + '%';
+  document.getElementById('uiStBar').style.background = stPct > 30 ? 'linear-gradient(90deg,#ffb020,#ffff60)' : 'linear-gradient(90deg,#ff6060,#ffa0a0)';
+  document.getElementById('uiStText').textContent = `${Math.max(0, Math.ceil(G.stamina))} / ${Math.ceil(G.maxStamina)}`;
+
+  // Thêm viền báo hiệu
+  const stBg = document.getElementById('uiStBarBg');
+  if (stPct >= 50) {
+    stBg.classList.remove('st-slow');
+    stBg.classList.add('st-fast');
+  } else {
+    stBg.classList.remove('st-fast');
+    stBg.classList.add('st-slow');
+  }
+
   const xpPct = Math.max(0, (G.xp / G.xpToNext) * 100);
   document.getElementById('uiXpBar').style.width = xpPct + '%';
   document.getElementById('uiXpText').textContent = `${Math.floor(G.xp)} / ${Math.floor(G.xpToNext)}`;
@@ -1126,55 +1125,140 @@ function loop(now) {
 }
 
 // ============================================================
-// INPUT
+// INPUT (ĐÃ SỬA TRIỆT ĐỂ LỖI KẸT PHÍM TRÊN PC)
 // ============================================================
+function resetAllInput() {
+  for (let k in G.keys) G.keys[k] = false;
+  G.mouse.down = false;
+  G.joystick.x = 0;
+  G.joystick.y = 0;
+  joyKnob.style.transform = `translate(-50%, -50%)`;
+}
+
 window.addEventListener('keydown', e => {
-  const k = e.key.toLowerCase(); G.keys[k] = true;
+  if (e.repeat) return; 
+  const k = e.key.toLowerCase(); 
+  G.keys[k] = true;
+  
   if (k === 'q') { e.preventDefault(); useSkill(0, G.keys['m']); }
   if (k === 'e') { e.preventDefault(); useSkill(1, G.keys['m']); }
   if (k === 'r') { e.preventDefault(); useSkill(2, G.keys['m']); }
   if (k === 't') { e.preventDefault(); useSkill(3, G.keys['m']); }
-  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  
+  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift',' '].includes(k)) e.preventDefault();
 });
-window.addEventListener('keyup', e => { G.keys[e.key.toLowerCase()] = false; });
-window.addEventListener('mousemove', e => { G.mouse.x = e.clientX; G.mouse.y = e.clientY; });
-window.addEventListener('mousedown', e => { if (e.target.id !== 'mobileControls' && e.button === 0) G.mouse.down = true; });
-window.addEventListener('mouseup', e => { if (e.button === 0) G.mouse.down = false; });
 
+window.addEventListener('keyup', e => { 
+  G.keys[e.key.toLowerCase()] = false; 
+});
+
+window.addEventListener('blur', resetAllInput);
+window.addEventListener('mouseleave', resetAllInput);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) resetAllInput();
+});
+
+window.addEventListener('mousemove', e => { G.mouse.x = e.clientX; G.mouse.y = e.clientY; });
+window.addEventListener('mousedown', e => { 
+  if (e.button === 0 && !e.target.closest('.overlay') && !e.target.closest('.skill-btn') && e.target.id !== 'mobileControls') {
+    G.mouse.down = true; 
+  }
+});
+window.addEventListener('mouseup', e => { if (e.button === 0) G.mouse.down = false; });
+window.addEventListener('contextmenu', e => e.preventDefault());
+
+// ============================================================
+// MOBILE CONTROLS
+// ============================================================
 const joyZone = document.getElementById('joystickZone');
 const joyKnob = document.getElementById('joystickKnob');
-let joyCenter = { x: 0, y: 0 }; let joyActive = false;
+let joyCenter = { x: 0, y: 0 }; 
+let joyActive = false;
+let joyTouchId = null;
 
-function handleTouchStart(e) {
-  e.preventDefault(); if (isTouchDevice) G.mouse.down = false;
-  const touch = e.touches[0]; const rect = joyZone.getBoundingClientRect();
-  joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
-  joyActive = true; updateJoystick(touch.clientX, touch.clientY);
-}
-function handleTouchMove(e) {
-  e.preventDefault(); if (!joyActive) return;
-  updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
-}
-function handleTouchEnd(e) {
-  e.preventDefault(); joyActive = false;
-  joyKnob.style.transform = `translate(-50%, -50%)`; G.joystick.x = 0; G.joystick.y = 0;
-}
 function updateJoystick(x, y) {
-  const maxDist = 50; let dx = x - joyCenter.x; let dy = y - joyCenter.y;
+  const maxDist = 40; 
+  let dx = x - joyCenter.x;
+  let dy = y - joyCenter.y;
   const dist = Math.hypot(dx, dy);
-  if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
+  
+  if (dist > maxDist) {
+    dx = (dx / dist) * maxDist;
+    dy = (dy / dist) * maxDist;
+  }
+  
   joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-  G.joystick.x = dx / maxDist; G.joystick.y = dy / maxDist;
+  
+  if (dist < 10) {
+    G.joystick.x = 0;
+    G.joystick.y = 0;
+  } else {
+    G.joystick.x = dx / maxDist;
+    G.joystick.y = dy / maxDist;
+  }
 }
-joyZone.addEventListener('touchstart', handleTouchStart, { passive: false });
-joyZone.addEventListener('touchmove', handleTouchMove, { passive: false });
-joyZone.addEventListener('touchend', handleTouchEnd, { passive: false });
-joyZone.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+joyZone.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (isTouchDevice) G.mouse.down = false;
+  const touch = e.changedTouches[0];
+  joyTouchId = touch.identifier;
+  const rect = joyZone.getBoundingClientRect();
+  joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+  joyActive = true;
+  updateJoystick(touch.clientX, touch.clientY);
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+  if (!joyActive) return;
+  e.preventDefault();
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === joyTouchId) {
+      updateJoystick(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+  if (!joyActive) return;
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === joyTouchId) {
+      joyActive = false; joyTouchId = null;
+      joyKnob.style.transform = `translate(-50%, -50%)`;
+      G.joystick.x = 0; G.joystick.y = 0;
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchcancel', (e) => {
+  if (!joyActive) return;
+  joyActive = false; joyTouchId = null;
+  joyKnob.style.transform = `translate(-50%, -50%)`;
+  G.joystick.x = 0; G.joystick.y = 0;
+}, { passive: false });
 
 const attackBtn = document.getElementById('attackBtn');
-attackBtn.addEventListener('touchstart', e => { e.preventDefault(); G.mouse.down = true; }, { passive: false });
-attackBtn.addEventListener('touchend', e => { e.preventDefault(); G.mouse.down = false; }, { passive: false });
-attackBtn.addEventListener('touchcancel', e => { e.preventDefault(); G.mouse.down = false; }, { passive: false });
+let attackTouchId = null;
+
+attackBtn.addEventListener('touchstart', e => {
+  e.preventDefault();
+  attackTouchId = e.changedTouches[0].identifier;
+  G.mouse.down = true;
+}, { passive: false });
+
+window.addEventListener('touchend', e => {
+  if (attackTouchId === null) return;
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === attackTouchId) {
+      attackTouchId = null; G.mouse.down = false;
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchcancel', e => {
+  if (attackTouchId === null) return;
+  attackTouchId = null; G.mouse.down = false;
+}, { passive: false });
 
 ['skillQ', 'skillE', 'skillR', 'skillT'].forEach((id, index) => {
   const btn = document.getElementById(id);
@@ -1182,13 +1266,18 @@ attackBtn.addEventListener('touchcancel', e => { e.preventDefault(); G.mouse.dow
   btn.addEventListener('click', (e) => { e.preventDefault(); useSkill(index); });
 });
 
+// ============================================================
+// STATE CONTROL
+// ============================================================
 function startGame() {
   G.active = true; G.playerZ = 1; G.hp = 100; G.maxHp = 100; G.xp = 0; G.xpToNext = 50; G.kills = 0;
+  G.stamina = G.maxStamina;
   G.playerX = W / 2; G.playerY = H / 2;
   G.enemies = []; G.bullets = []; G.particles = []; G.floatTexts = []; G.clones = [];
   G.skills.forEach(s => { s.cd = 0; });
   G.spawnTimer = 1; G.shootTimer = 0; G.shake = 0; G.time = 0;
   G.shieldTime = 0; G.invulnerableTime = 0; G.damageBuffTime = 0; G.stealthTime = 0;
+  resetAllInput();
   
   updateStatsFromZ();
   document.getElementById('uiKills').textContent = 0;
